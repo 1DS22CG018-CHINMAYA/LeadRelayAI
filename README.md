@@ -5,8 +5,9 @@ LeadRelay reads every lead and WhatsApp conversation, decides who is Hot, Warm o
 
 | | |
 | --- | --- |
-| **Live app** | `https://leadrelayai.onrender.com/` *(replace after deploying; see section 10)* |
-| **Source code** | `https://github.com/1DS22CG018-CHINMAYA/LeadRelayAI` *(replace after pushing)* |
+| **Live app** | <https://leadrelayai.onrender.com/> |
+| **Source code** | <https://github.com/1DS22CG018-CHINMAYA/LeadRelayAI> |
+| **Video Walkthrough** | [Loom Demo (4:49)](https://www.loom.com/share/a30c4682e72f4429806de3d92a281460) |
 | **Stack** | Python 3.11, FastAPI, LangGraph, Groq (Llama 3.3 70B), SQLite, single-file HTML/JS UI |
 | **Status** | Feature-complete; automated verification suite passing |
 
@@ -201,7 +202,7 @@ The repository ships with a `render.yaml` blueprint, so deployment needs no manu
 2. **Create the service.** In Render, choose **New > Blueprint**, connect the repository, and select it. Render reads `render.yaml`.
 3. **Add the secret.** When prompted, paste your `GROQ_API_KEY`.
 4. **Deploy.** Wait for the build to finish and the health check to turn green.
-5. **Smoke test.** Open `https://<your-service-name>.onrender.com/api/health` and expect `{"status": "healthy", ...}`, then open the root URL to see the dashboard.
+5. **Smoke test.** Open `https://leadrelayai.onrender.com/api/health` and expect `{"status": "healthy", ...}`, then open the root URL to see the dashboard.
 6. **Record the URLs.** Paste the live link and the repository link into the table at the top of this README.
 
 ### Checklist
