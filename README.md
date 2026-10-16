@@ -207,11 +207,11 @@ The repository ships with a `render.yaml` blueprint, so deployment needs no manu
 
 ### Checklist
 
-- [ ] Dashboard loads and shows 20 leads with Overdue and Due Today counters
-- [ ] Open a lead: chat, tag, reason and draft are visible
-- [ ] Add a chat message: the agent re-tags the lead and the toast confirms it
-- [ ] Edit a draft and mark it sent: it moves to the Sent tab and appears in the chat
-- [ ] Add a new lead: it receives a tag, reason, date and draft
+-  Dashboard loads and shows 20 leads with Overdue and Due Today counters
+-  Open a lead: chat, tag, reason and draft are visible
+-  Add a chat message: the agent re-tags the lead and the toast confirms it
+-  Edit a draft and mark it sent: it moves to the Sent tab and appears in the chat
+-  Add a new lead: it receives a tag, reason, date and draft
 
 ### Operational notes
 
