@@ -5,8 +5,8 @@ LeadRelay reads every lead and WhatsApp conversation, decides who is Hot, Warm o
 
 | | |
 | --- | --- |
-| **Live app** | `https://<your-service-name>.onrender.com` *(replace after deploying; see section 10)* |
-| **Source code** | `https://github.com/<your-username>/<your-repo>` *(replace after pushing)* |
+| **Live app** | `https://leadrelayai.onrender.com/` *(replace after deploying; see section 10)* |
+| **Source code** | `https://github.com/1DS22CG018-CHINMAYA/LeadRelayAI` *(replace after pushing)* |
 | **Stack** | Python 3.11, FastAPI, LangGraph, Groq (Llama 3.3 70B), SQLite, single-file HTML/JS UI |
 | **Status** | Feature-complete; automated verification suite passing |
 
