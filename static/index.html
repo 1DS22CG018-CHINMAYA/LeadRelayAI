@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LeadRelay · Packaging Equipment Sales Follow-up Copilot</title>
+  <meta name="description" content="LeadRelay tells packaging equipment sales reps who to follow up with today, with AI-tagged leads and ready-to-send WhatsApp drafts." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } };
+  </script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .wa-bg {
+      background-color: #efeae2;
+      background-image: radial-gradient(rgba(0,0,0,.045) 1px, transparent 1px);
+      background-size: 14px 14px;
+    }
+    .drawer { transition: transform .3s cubic-bezier(.4,0,.2,1); }
+    .fade { transition: opacity .25s ease; }
+    @keyframes pulseRing { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,.45);} 50% { box-shadow: 0 0 0 6px rgba(220,38,38,0);} }
+    .pulse-red { animation: pulseRing 2s infinite; }
+    @keyframes flash { from { background:#fef9c3; } to { background:transparent; } }
+    .flash { animation: flash 1.2s ease-out; }
+    .scroll-thin::-webkit-scrollbar { width: 6px; }
+    .scroll-thin::-webkit-scrollbar-thumb { background: rgba(0,0,0,.2); border-radius: 3px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+<!-- ================= HEADER ================= -->
+<header class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 text-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="h-11 w-11 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 grid place-items-center shadow-lg">
+        <i data-lucide="send" class="h-5 w-5 text-white"></i>
+      </div>
+      <div>
+        <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight">LeadRelay</h1>
+        <p class="text-xs sm:text-sm text-slate-300">Packaging Equipment Sales Follow-up Copilot</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="todayLabel" class="hidden sm:inline text-sm text-slate-300"></span>
+      <button id="resetDemoBtn" title="Restore pristine seed data" class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-300 hover:text-white border border-white/20 hover:border-white/40 hover:bg-white/10 px-3 py-2 rounded-lg transition disabled:opacity-60">
+        <i data-lucide="rotate-ccw" class="h-3.5 w-3.5"></i><span>Reset Demo Data</span>
+      </button>
+      <button id="addLeadBtn" class="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 active:scale-95 transition text-white font-semibold px-4 py-2.5 rounded-lg shadow-md">
+        <i data-lucide="plus" class="h-4 w-4"></i> Add New Lead
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+  <!-- ================= KPI BAR ================= -->
+  <section class="grid grid-cols-1 sm:grid-cols-3 gap-4" aria-label="Follow-up summary">
+    <button data-jump="overdue" class="kpi text-left rounded-2xl p-5 bg-gradient-to-br from-red-600 to-rose-700 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition">
+      <div class="flex items-center justify-between">
+        <span class="text-sm font-semibold uppercase tracking-wide text-red-100">Overdue Follow-ups</span>
+        <i data-lucide="alarm-clock" class="h-5 w-5 text-red-100"></i>
+      </div>
+      <div id="kpiOverdue" class="mt-2 text-5xl font-extrabold">–</div>
+      <div class="mt-1 text-sm text-red-100">Call these first</div>
+    </button>
+    <button data-jump="today" class="kpi text-left rounded-2xl p-5 bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition">
+      <div class="flex items-center justify-between">
+        <span class="text-sm font-semibold uppercase tracking-wide text-amber-50">Due Today</span>
+        <i data-lucide="calendar-check" class="h-5 w-5 text-amber-50"></i>
+      </div>
+      <div id="kpiToday" class="mt-2 text-5xl font-extrabold">–</div>
+      <div class="mt-1 text-sm text-amber-50">Reply before end of day</div>
+    </button>
+    <button data-jump="all" class="kpi text-left rounded-2xl p-5 bg-white border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition">
+      <div class="flex items-center justify-between">
+        <span class="text-sm font-semibold uppercase tracking-wide text-slate-500">Pipeline / Upcoming</span>
+        <i data-lucide="trending-up" class="h-5 w-5 text-emerald-500"></i>
+      </div>
+      <div id="kpiPipeline" class="mt-2 text-5xl font-extrabold text-slate-800">–</div>
+      <div id="kpiSent" class="mt-1 text-sm text-slate-500">0 completed today</div>
+    </button>
+  </section>
+
+  <!-- ================= LEAD TABLE ================= -->
+  <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3 border-b border-slate-100">
+      <nav id="tabs" class="flex flex-wrap gap-1.5" role="tablist">
+        <button data-tab="all" class="tab">All Leads</button>
+        <button data-tab="overdue" class="tab">⚠️ Overdue First</button>
+        <button data-tab="hot" class="tab">🔥 HOT Leads</button>
+        <button data-tab="sent" class="tab">✅ Completed Today</button>
+      </nav>
+      <div class="relative">
+        <i data-lucide="search" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+        <input id="searchInput" type="search" placeholder="Search company or contact…" class="pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-56" />
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+          <tr>
+            <th class="text-left font-semibold px-5 py-3">Company &amp; Contact</th>
+            <th class="text-left font-semibold px-5 py-3">Source</th>
+            <th class="text-left font-semibold px-5 py-3">AI Status</th>
+            <th class="text-left font-semibold px-5 py-3">Urgency &amp; Due Date</th>
+            <th class="text-right font-semibold px-5 py-3">Action</th>
+          </tr>
+        </thead>
+        <tbody id="leadTableBody" class="divide-y divide-slate-100">
+          <tr><td colspan="5" class="px-5 py-16 text-center text-slate-400">
+            <div class="inline-flex items-center gap-2"><span class="spinner"></span> Loading leads…</div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<!-- ================= DRAWER ================= -->
+<div id="overlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-[1px] opacity-0 pointer-events-none fade z-30"></div>
+<aside id="drawer" class="drawer fixed top-0 right-0 h-full w-full sm:w-[560px] bg-white shadow-2xl z-40 translate-x-full flex flex-col" aria-label="Lead details">
+  <div class="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
+    <div class="min-w-0 flex-1">
+      <div id="dView">
+        <div class="flex items-center gap-2 flex-wrap">
+          <h2 id="dName" class="text-lg font-bold truncate"></h2>
+          <span id="dStatus"></span>
+          <span id="dUrgency"></span>
+        </div>
+        <p class="text-sm text-slate-500 truncate"><span id="dCompany"></span> · <span id="dPhone" class="font-mono"></span> · <span id="dSource" class="text-xs"></span></p>
+        <div id="dFollowUp" class="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700"></div>
+      </div>
+      <form id="editForm" class="hidden grid grid-cols-2 gap-2">
+        <input id="eName" required maxlength="120" placeholder="Contact name" class="text-sm rounded-lg border border-slate-300 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        <input id="eCompany" required maxlength="160" placeholder="Company" class="text-sm rounded-lg border border-slate-300 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        <input id="ePhone" required minlength="5" maxlength="32" placeholder="Phone" class="text-sm font-mono rounded-lg border border-slate-300 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        <select id="eSource" required class="text-sm rounded-lg border border-slate-300 px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <option>PackExpo 2026</option>
+          <option>Website RFQ</option>
+          <option>Distributor Referral</option>
+          <option>Cold Inbound</option>
+        </select>
+        <div class="col-span-2 flex gap-2">
+          <button id="saveEditBtn" type="submit" class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-60"><i data-lucide="check" class="h-3.5 w-3.5"></i><span>Save</span></button>
+          <button id="cancelEditBtn" type="button" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100">Cancel</button>
+        </div>
+      </form>
+    </div>
+    <div class="flex items-center gap-1 shrink-0">
+      <button id="editDetailsBtn" class="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg"><i data-lucide="pencil" class="h-3.5 w-3.5"></i> Edit Details</button>
+      <button id="closeDrawer" class="p-2 rounded-lg hover:bg-slate-100" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button>
+    </div>
+  </div>
+
+  <div class="flex-1 overflow-y-auto scroll-thin">
+    <!-- Agent reasoning -->
+    <div class="px-5 pt-4">
+      <div id="reasonBox" class="rounded-xl border border-indigo-200 bg-indigo-50 p-3.5 flex gap-3">
+        <i data-lucide="sparkles" class="h-5 w-5 text-indigo-600 shrink-0 mt-0.5"></i>
+        <div>
+          <div class="text-xs font-bold uppercase tracking-wide text-indigo-700">Why the agent tagged this lead</div>
+          <p id="dReason" class="text-sm text-indigo-950 mt-0.5"></p>
+          <p class="text-xs text-indigo-700/80 mt-1">Next follow-up: <span id="dNext" class="font-semibold"></span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat -->
+    <div class="px-5 pt-4">
+      <div class="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2 flex items-center gap-1.5">
+        <i data-lucide="message-circle" class="h-4 w-4"></i> WhatsApp Conversation
+      </div>
+      <div class="rounded-xl overflow-hidden border border-slate-200">
+        <div id="chatBox" class="wa-bg h-64 overflow-y-auto scroll-thin p-3 space-y-2"></div>
+        <form id="chatForm" class="flex gap-2 p-2 bg-slate-100 border-t border-slate-200">
+          <select id="chatSender" class="text-xs rounded-lg border border-slate-300 bg-white px-2" aria-label="Sender">
+            <option value="BUYER">Buyer</option>
+            <option value="REP">Rep</option>
+          </select>
+          <input id="chatInput" class="flex-1 min-w-0 text-sm rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Simulate incoming buyer WhatsApp reply…" maxlength="2000" />
+          <button id="chatSendBtn" type="submit" class="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-3 rounded-lg disabled:opacity-60 whitespace-nowrap">
+            <i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i><span>Send &amp; Re-evaluate with AI</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Draft -->
+    <div class="px-5 py-4">
+      <div class="flex items-center justify-between mb-2">
+        <label for="draftMessageInput" class="text-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
+          <i data-lucide="pen-line" class="h-4 w-4"></i> AI Suggested WhatsApp Follow-up (&lt;50 words)
+        </label>
+        <button id="resetDraft" class="text-xs font-semibold text-indigo-600 hover:underline">Reset to AI Draft</button>
+      </div>
+      <textarea id="draftMessageInput" rows="4" class="w-full text-sm rounded-xl border border-slate-300 p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"></textarea>
+      <div class="flex justify-between text-xs mt-1">
+        <span id="draftHint" class="text-slate-400"></span>
+        <span id="wordCount" class="font-medium text-slate-500"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="border-t border-slate-200 p-4 grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-50">
+    <button id="saveDraftBtn" class="inline-flex justify-center items-center gap-1.5 border border-slate-300 bg-white hover:bg-slate-100 font-semibold text-sm px-3 py-2.5 rounded-lg">
+      <i data-lucide="save" class="h-4 w-4"></i> Save Custom Draft
+    </button>
+    <a id="waBtn" target="_blank" rel="noopener" class="inline-flex justify-center items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-sm px-3 py-2.5 rounded-lg">
+      <i data-lucide="message-circle" class="h-4 w-4"></i> Open in WhatsApp Web
+    </a>
+    <button id="markSentBtn" class="inline-flex justify-center items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-3 py-2.5 rounded-lg disabled:opacity-60">
+      <i data-lucide="check-check" class="h-4 w-4"></i> <span>Mark as Sent</span>
+    </button>
+  </div>
+</aside>
+
+<!-- ================= ADD LEAD MODAL ================= -->
+<div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 p-4">
+  <form id="leadForm" class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h2 class="text-lg font-bold">Add New Lead</h2>
+      <button type="button" id="closeModal" class="p-2 rounded-lg hover:bg-slate-100" aria-label="Close"><i data-lucide="x" class="h-5 w-5"></i></button>
+    </div>
+    <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <label class="text-sm font-medium">Contact Name
+        <input id="fName" required maxlength="120" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Maria Lopez" />
+      </label>
+      <label class="text-sm font-medium">Company Name
+        <input id="fCompany" required maxlength="160" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Sunrise Bakery Co." />
+      </label>
+      <label class="text-sm font-medium">Phone
+        <input id="fPhone" required minlength="5" maxlength="32" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="+1-555-010-2030" />
+      </label>
+      <label class="text-sm font-medium">Lead Source
+        <select id="fSource" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <option>PackExpo 2026</option>
+          <option>Website RFQ</option>
+          <option>Distributor Referral</option>
+          <option>Cold Inbound</option>
+        </select>
+      </label>
+      <label class="text-sm font-medium sm:col-span-2">Initial Buyer Notes / WhatsApp Message
+        <textarea id="fNotes" rows="3" maxlength="2000" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Need a quote for a semi-automatic carton taper, 220V, delivery in 3 weeks."></textarea>
+      </label>
+    </div>
+    <div class="px-6 py-4 bg-slate-50 flex justify-end gap-2">
+      <button type="button" id="cancelModal" class="px-4 py-2 rounded-lg border border-slate-300 bg-white font-semibold text-sm hover:bg-slate-100">Cancel</button>
+      <button id="submitLead" type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm disabled:opacity-60">
+        <i data-lucide="sparkles" class="h-4 w-4"></i><span>Add &amp; Evaluate with AI</span>
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- ================= RESET CONFIRM MODAL ================= -->
+<div id="resetModal" class="fixed inset-0 z-[55] hidden items-center justify-center bg-slate-900/60 p-4" role="dialog" aria-modal="true" aria-labelledby="resetTitle">
+  <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+    <div class="px-6 pt-5 pb-4">
+      <h2 id="resetTitle" class="text-lg font-bold flex items-center gap-2 text-amber-700">⚠️ Reset Demo State (Evaluator Tool)</h2>
+      <p class="text-sm text-slate-600 mt-3">This will wipe all mutations, simulated chats, and custom edits, restoring the original 20 pristine B2B packaging seed leads.</p>
+      <p class="text-sm font-semibold text-slate-800 mt-3">Are you sure you want to restore the baseline demo data?</p>
+    </div>
+    <div class="px-6 py-4 bg-slate-50 flex justify-end gap-2">
+      <button type="button" id="resetCancelBtn" class="px-4 py-2 rounded-lg border border-slate-300 bg-white font-semibold text-sm hover:bg-slate-100">Cancel</button>
+      <button type="button" id="resetConfirmBtn" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-sm disabled:opacity-60"><i data-lucide="rotate-ccw" class="h-4 w-4"></i><span>Yes, Reset Demo Data</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= TOAST ================= -->
+<div id="toastWrap" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] space-y-2"></div>
+
+<style>
+  .tab { padding: .45rem .8rem; border-radius: .5rem; font-size: .8125rem; font-weight: 600; color: #475569; transition: all .15s; }
+  .tab:hover { background: #f1f5f9; }
+  .tab.active { background: #0f172a; color: #fff; }
+  .spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; display: inline-block; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const state = { leads: [], tab: 'all', search: '', openId: null, aiDrafts: {} };
+
+  // ---------- utils ----------
+  const todayISO = () => {
+    const d = new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  };
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const daysBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
+  const fmtDate = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const words = (s) => (s.trim().match(/\S+/g) || []).length;
+  const icons = () => window.lucide && lucide.createIcons();
+
+  function urgencyOf(lead) {
+    if (lead.is_sent) return 'SENT';
+    const t = todayISO();
+    if (lead.next_follow_up_date < t) return 'OVERDUE';
+    if (lead.next_follow_up_date === t) return 'TODAY';
+    return 'UPCOMING';
+  }
+
+  async function api(path, opts = {}) {
+    const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+    let body = null;
+    try { body = await res.json(); } catch (_) { /* empty body */ }
+    if (!res.ok) {
+      const d = body && body.detail;
+      const msg = Array.isArray(d) ? d.map((e) => `${e.loc?.slice(-1)[0]}: ${e.msg}`).join(', ') : (d || `Request failed (${res.status})`);
+      throw new Error(msg);
+    }
+    return body;
+  }
+
+  function toast(msg, type = 'success') {
+    const colors = { success: 'bg-emerald-600', error: 'bg-red-600', info: 'bg-slate-800' };
+    const icon = { success: 'check-circle-2', error: 'alert-triangle', info: 'info' }[type];
+    const el = document.createElement('div');
+    el.className = `${colors[type]} text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 fade opacity-0`;
+    el.innerHTML = `<i data-lucide="${icon}" class="h-4 w-4"></i><span>${esc(msg)}</span>`;
+    $('toastWrap').appendChild(el); icons();
+    requestAnimationFrame(() => (el.style.opacity = 1));
+    setTimeout(() => { el.style.opacity = 0; setTimeout(() => el.remove(), 300); }, 3200);
+  }
+
+  const statusBadge = (s) => {
+    const map = { HOT: 'bg-red-100 text-red-800 ring-red-200', WARM: 'bg-yellow-100 text-yellow-800 ring-yellow-200', COLD: 'bg-slate-100 text-slate-800 ring-slate-200' };
+    const emoji = { HOT: '🔥', WARM: '🌤️', COLD: '❄️' };
+    return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ring-1 ${map[s] || map.COLD}">${emoji[s] || ''} ${esc(s)}</span>`;
+  };
+
+  function urgencyCell(lead) {
+    const u = urgencyOf(lead);
+    if (u === 'SENT') return `<span class="inline-flex items-center gap-1 font-semibold text-emerald-600"><i data-lucide="check-circle-2" class="h-4 w-4"></i> Completed</span>`;
+    if (u === 'OVERDUE') {
+      const n = daysBetween(lead.next_follow_up_date, todayISO());
+      return `<span class="inline-flex items-center gap-1.5 font-bold text-red-600"><span class="h-2 w-2 rounded-full bg-red-600 pulse-red"></span>⚠️ Overdue (${n} day${n > 1 ? 's' : ''} ago)</span>`;
+    }
+    if (u === 'TODAY') return `<span class="font-bold text-amber-600">📅 Due Today</span>`;
+    return `<span class="text-slate-500">${fmtDate(lead.next_follow_up_date)}</span>`;
+  }
+
+  // ---------- rendering ----------
+  const RANK = { OVERDUE: 0, TODAY: 1, UPCOMING: 2, SENT: 3 };
+  const SRANK = { HOT: 0, WARM: 1, COLD: 2 };
+
+  function visibleLeads() {
+    let list = state.leads.slice();
+    const q = state.search.toLowerCase();
+    if (q) list = list.filter((l) => `${l.company} ${l.name} ${l.phone}`.toLowerCase().includes(q));
+    if (state.tab === 'overdue') list = list.filter((l) => ['OVERDUE', 'TODAY'].includes(urgencyOf(l)));
+    if (state.tab === 'hot') list = list.filter((l) => l.status === 'HOT' && !l.is_sent);
+    if (state.tab === 'sent') list = list.filter((l) => l.is_sent);
+    return list.sort((a, b) =>
+      RANK[urgencyOf(a)] - RANK[urgencyOf(b)] ||
+      SRANK[a.status] - SRANK[b.status] ||
+      a.next_follow_up_date.localeCompare(b.next_follow_up_date));
+  }
+
+  function renderKPIs() {
+    const c = { OVERDUE: 0, TODAY: 0, UPCOMING: 0, SENT: 0 };
+    state.leads.forEach((l) => c[urgencyOf(l)]++);
+    $('kpiOverdue').textContent = c.OVERDUE;
+    $('kpiToday').textContent = c.TODAY;
+    $('kpiPipeline').textContent = c.UPCOMING;
+    $('kpiSent').textContent = `${c.SENT} completed today`;
+    document.title = (c.OVERDUE + c.TODAY ? `(${c.OVERDUE + c.TODAY}) ` : '') + 'LeadRelay · Sales Follow-up Copilot';
+  }
+
+  function renderTable(flashId) {
+    const rows = visibleLeads();
+    const emptyMsg = { sent: 'No follow-ups completed yet today.', hot: 'No open HOT leads.', overdue: 'Nothing overdue or due today. 🎉', all: 'No leads found.' }[state.tab];
+    if (!rows.length) {
+      $('leadTableBody').innerHTML = `<tr><td colspan="5" class="px-5 py-16 text-center text-slate-400">${emptyMsg}</td></tr>`;
+      return;
+    }
+    $('leadTableBody').innerHTML = rows.map((l) => {
+      const u = urgencyOf(l);
+      const rowCls = u === 'OVERDUE' ? 'bg-red-50/70 border-l-4 border-l-red-500' : u === 'TODAY' ? 'bg-amber-50/60 border-l-4 border-l-amber-400' : u === 'SENT' ? 'opacity-60 border-l-4 border-l-emerald-400' : 'border-l-4 border-l-transparent';
+      return `<tr data-id="${l.id}" class="lead-row cursor-pointer hover:bg-slate-50 transition ${rowCls} ${flashId === l.id ? 'flash' : ''}">
+        <td class="px-5 py-3.5">
+          <div class="font-bold text-slate-900">${esc(l.company)}</div>
+          <div class="text-slate-500 text-xs mt-0.5">${esc(l.name)} · <span class="font-mono">${esc(l.phone)}</span></div>
+        </td>
+        <td class="px-5 py-3.5"><span class="inline-block px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-xs font-medium">${esc(l.source)}</span></td>
+        <td class="px-5 py-3.5">${statusBadge(l.status)}</td>
+        <td class="px-5 py-3.5 whitespace-nowrap">${urgencyCell(l)}</td>
+        <td class="px-5 py-3.5 text-right">
+          <button class="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg ${u === 'OVERDUE' ? 'bg-red-600 text-white hover:bg-red-700' : u === 'TODAY' ? 'bg-amber-500 text-white hover:bg-amber-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">
+            Review Follow-up <i data-lucide="chevron-right" class="h-3.5 w-3.5"></i>
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+    icons();
+  }
+
+  function renderAll(flashId) { renderKPIs(); renderTable(flashId); }
+
+  function upsertLead(lead, { refreshDraft = true } = {}) {
+    const i = state.leads.findIndex((l) => l.id === lead.id);
+    if (i >= 0) state.leads[i] = lead; else state.leads.unshift(lead);
+    if (refreshDraft) state.aiDrafts[lead.id] = lead.draft_message;
+    if (state.openId === lead.id) fillDrawer(lead, refreshDraft);
+  }
+
+  // ---------- drawer ----------
+  function renderChat(msgs, source) {
+    const box = $('chatBox');
+    if (!msgs.length) {
+      box.innerHTML = `<div class="h-full grid place-items-center p-4"><div class="max-w-sm text-center bg-white/90 border border-emerald-200 rounded-xl shadow-sm px-4 py-3">
+        <div class="text-sm font-bold text-emerald-700">🆕 New Inbound Prospect from ${esc(source || 'unknown source')}</div>
+        <p class="text-xs text-slate-600 mt-1">No WhatsApp messages exchanged yet. Send the AI draft below to open outreach.</p>
+      </div></div>`;
+      return;
+    }
+    box.innerHTML = msgs.map((m) => {
+      const rep = m.sender === 'REP';
+      return `<div class="flex ${rep ? 'justify-end' : 'justify-start'}">
+        <div class="max-w-[80%] px-3 py-2 rounded-xl shadow-sm text-sm ${rep ? 'bg-emerald-100 rounded-tr-sm' : 'bg-white rounded-tl-sm'}">
+          <div class="text-[10px] font-bold ${rep ? 'text-emerald-700' : 'text-sky-700'} mb-0.5">${rep ? 'You (Rep)' : 'Buyer'}</div>
+          <div class="whitespace-pre-wrap break-words text-slate-800">${esc(m.message)}</div>
+          <div class="text-[10px] text-slate-500 text-right mt-1">${esc(m.timestamp)}${rep ? ' ✓✓' : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function updateDraftMeta() {
+    const lead = state.leads.find((l) => l.id === state.openId);
+    if (!lead) return;
+    const text = $('draftMessageInput').value;
+    const n = words(text);
+    $('wordCount').textContent = `${n} / 50 words`;
+    $('wordCount').className = `font-medium ${n >= 50 ? 'text-red-600' : 'text-slate-500'}`;
+    const edited = text.trim() !== (state.aiDrafts[lead.id] || '').trim();
+    $('draftHint').textContent = edited ? 'Edited · not yet saved as AI draft baseline' : 'AI-generated draft';
+    const phone = lead.phone.replace(/\D/g, '');
+    $('waBtn').href = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+  }
+
+  function fillDrawer(lead, resetDraft = true) {
+    $('dName').textContent = lead.name;
+    $('dCompany').textContent = lead.company;
+    $('dPhone').textContent = lead.phone;
+    $('dSource').textContent = lead.source;
+    $('dStatus').innerHTML = statusBadge(lead.status);
+    const u = urgencyOf(lead);
+    $('dUrgency').innerHTML = u === 'UPCOMING' ? '' : urgencyCell(lead).replace('font-bold', 'font-bold text-xs').replace('font-semibold', 'font-semibold text-xs');
+    const dd = daysBetween(todayISO(), lead.next_follow_up_date);
+    const rel = dd === 0 ? 'Today' : dd > 0 ? `In ${dd} day${dd > 1 ? 's' : ''}` : `${-dd} day${dd < -1 ? 's' : ''} overdue`;
+    $('dFollowUp').textContent = `📅 Follow-up: ${lead.next_follow_up_date} (${rel})`;
+    $('dFollowUp').className = `mt-1.5 inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md ${dd < 0 && !lead.is_sent ? 'bg-red-50 text-red-700' : dd === 0 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-700'}`;
+    $('dReason').textContent = lead.status_reason;
+    $('dNext').textContent = u === 'SENT' ? 'Completed today' : fmtDate(lead.next_follow_up_date);
+    renderChat(lead.chat_messages || [], lead.source);
+    if (resetDraft) $('draftMessageInput').value = lead.draft_message;
+    const sent = lead.is_sent;
+    $('markSentBtn').disabled = sent;
+    $('markSentBtn').querySelector('span').textContent = sent ? 'Sent ✓' : 'Mark as Sent';
+    updateDraftMeta(); icons();
+  }
+
+  function openDrawer(id) {
+    const lead = state.leads.find((l) => l.id === id);
+    if (!lead) return;
+    state.openId = id;
+    setEditMode(false);
+    if (!(id in state.aiDrafts)) state.aiDrafts[id] = lead.draft_message;
+    fillDrawer(lead);
+    $('drawer').classList.remove('translate-x-full');
+    $('overlay').classList.remove('opacity-0', 'pointer-events-none');
+    setTimeout(() => $('chatInput').focus(), 300);
+  }
+
+  function setEditMode(on) {
+    $('dView').classList.toggle('hidden', on);
+    $('editForm').classList.toggle('hidden', !on);
+    $('editDetailsBtn').classList.toggle('hidden', on);
+    if (on) {
+      const l = state.leads.find((x) => x.id === state.openId);
+      if (!l) return;
+      $('eName').value = l.name; $('eCompany').value = l.company;
+      $('ePhone').value = l.phone;
+      const sel = $('eSource');
+      sel.querySelectorAll('option[data-custom]').forEach((o) => o.remove());
+      if (![...sel.options].some((o) => o.value === l.source)) {
+        // Preserve legacy/custom sources so editing never silently changes them.
+        const o = new Option(l.source, l.source); o.dataset.custom = '1'; sel.add(o);
+      }
+      sel.value = l.source;
+      setTimeout(() => $('eName').focus(), 30);
+    }
+  }
+
+  function closeDrawer() {
+    setEditMode(false);
+    state.openId = null;
+    $('drawer').classList.add('translate-x-full');
+    $('overlay').classList.add('opacity-0', 'pointer-events-none');
+  }
+
+  function setBusy(btn, busy, label) {
+    btn.disabled = busy;
+    const span = btn.querySelector('span');
+    if (busy) { btn.dataset.html = btn.innerHTML; btn.innerHTML = `<span class="spinner"></span><span>${label}</span>`; }
+    else if (btn.dataset.html) { btn.innerHTML = btn.dataset.html; icons(); }
+    return span;
+  }
+
+  // ---------- actions ----------
+  async function loadLeads() {
+    try {
+      state.leads = await api('/api/leads');
+      state.leads.forEach((l) => { if (!(l.id in state.aiDrafts)) state.aiDrafts[l.id] = l.draft_message; });
+      renderAll();
+    } catch (e) {
+      $('leadTableBody').innerHTML = `<tr><td colspan="5" class="px-5 py-16 text-center text-red-600">Could not load leads: ${esc(e.message)} <button id="retryBtn" class="ml-2 underline font-semibold">Retry</button></td></tr>`;
+      $('retryBtn').onclick = loadLeads;
+    }
+  }
+
+  $('chatForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const message = $('chatInput').value.trim();
+    if (!message || !state.openId) return;
+    const id = state.openId;
+    const btn = $('chatSendBtn');
+    setBusy(btn, true, 'AI re-evaluating…');
+    $('reasonBox').classList.add('animate-pulse');
+    try {
+      const res = await api(`/api/leads/${id}/chat`, { method: 'POST', body: JSON.stringify({ sender: $('chatSender').value, message }) });
+      const prev = state.leads.find((l) => l.id === id)?.status;
+      upsertLead(res.updated_lead);
+      renderAll(id);
+      $('chatInput').value = '';
+      const now = res.updated_lead.status;
+      toast(prev !== now ? `Agent re-tagged lead: ${prev} → ${now}` : `Agent re-evaluated: still ${now}`, 'success');
+    } catch (e) {
+      toast(`Re-evaluation failed: ${e.message}`, 'error');
+    } finally {
+      setBusy(btn, false);
+      $('reasonBox').classList.remove('animate-pulse');
+    }
+  });
+
+  $('draftMessageInput').addEventListener('input', updateDraftMeta);
+
+  $('resetDraft').addEventListener('click', () => {
+    if (!state.openId) return;
+    $('draftMessageInput').value = state.aiDrafts[state.openId] || '';
+    updateDraftMeta();
+    toast('Draft reset to AI suggestion', 'info');
+  });
+
+  $('saveDraftBtn').addEventListener('click', async () => {
+    const id = state.openId;
+    const draft = $('draftMessageInput').value.trim();
+    if (!id) return;
+    if (!draft) return toast('Draft cannot be empty', 'error');
+    const btn = $('saveDraftBtn');
+    setBusy(btn, true, 'Saving…');
+    try {
+      const res = await api(`/api/leads/${id}/draft`, { method: 'PATCH', body: JSON.stringify({ draft_message: draft }) });
+      upsertLead(res.updated_lead, { refreshDraft: false });
+      toast('Custom draft saved');
+    } catch (e) {
+      toast(`Save failed: ${e.message}`, 'error');
+    } finally { setBusy(btn, false); updateDraftMeta(); }
+  });
+
+  $('markSentBtn').addEventListener('click', async () => {
+    const id = state.openId;
+    if (!id) return;
+    const btn = $('markSentBtn');
+    const draft = $('draftMessageInput').value.trim();
+    const lead = state.leads.find((l) => l.id === id);
+    setBusy(btn, true, 'Marking…');
+    try {
+      // Persist any unsaved edits so the logged message matches what was sent.
+      if (draft && draft !== lead.draft_message) {
+        await api(`/api/leads/${id}/draft`, { method: 'PATCH', body: JSON.stringify({ draft_message: draft }) });
+      }
+      const res = await api(`/api/leads/${id}/mark-sent`, { method: 'PATCH' });
+      setBusy(btn, false);
+      upsertLead(res.updated_lead, { refreshDraft: false });
+      renderAll(id);
+      toast(`Follow-up to ${lead.company} marked as sent ✓`);
+    } catch (e) {
+      toast(`Could not mark as sent: ${e.message}`, 'error');
+      setBusy(btn, false);
+    }
+  });
+
+  // lead metadata editing
+  $('editDetailsBtn').onclick = () => setEditMode(true);
+  $('cancelEditBtn').onclick = () => setEditMode(false);
+  $('editForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const id = state.openId;
+    if (!id) return;
+    const btn = $('saveEditBtn');
+    setBusy(btn, true, 'Saving…');
+    try {
+      const payload = { name: $('eName').value.trim(), company: $('eCompany').value.trim(), phone: $('ePhone').value.trim(), source: $('eSource').value.trim() };
+      const lead = await api(`/api/leads/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      setBusy(btn, false);
+      setEditMode(false);
+      upsertLead(lead, { refreshDraft: false });
+      renderAll(id);
+      toast('Lead details updated');
+    } catch (e) {
+      setBusy(btn, false);
+      toast(`Update failed: ${e.message}`, 'error');
+    }
+  });
+
+  // demo reset (custom modal: native confirm() can be silently suppressed by the browser)
+  const openResetModal = () => { $('resetModal').classList.remove('hidden'); $('resetModal').classList.add('flex'); setTimeout(() => $('resetCancelBtn').focus(), 30); };
+  const closeResetModal = () => { $('resetModal').classList.add('hidden'); $('resetModal').classList.remove('flex'); };
+
+  async function resetDemoData() {
+    const btn = $('resetConfirmBtn');
+    setBusy(btn, true, 'Resetting…');
+    try {
+      const res = await api('/api/reset', { method: 'POST' });
+      if (!res || res.status !== 'ok') throw new Error(res?.message || 'Unexpected response');
+      closeResetModal();
+      toast(res.message || 'Demo data restored successfully');
+      setTimeout(() => window.location.reload(), 700);
+    } catch (e) {
+      toast(`Reset failed: ${e.message}`, 'error');
+      setBusy(btn, false);
+    }
+  }
+  $('resetDemoBtn').addEventListener('click', openResetModal);
+  $('resetCancelBtn').addEventListener('click', closeResetModal);
+  $('resetConfirmBtn').addEventListener('click', resetDemoData);
+  $('resetModal').addEventListener('click', (e) => { if (e.target.id === 'resetModal') closeResetModal(); });
+
+  // table interactions
+  $('leadTableBody').addEventListener('click', (ev) => {
+    const row = ev.target.closest('.lead-row');
+    if (row) openDrawer(Number(row.dataset.id));
+  });
+  $('closeDrawer').onclick = closeDrawer;
+  $('overlay').onclick = closeDrawer;
+
+  function setTab(tab) {
+    state.tab = tab;
+    document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+    renderTable();
+  }
+  $('tabs').addEventListener('click', (ev) => { const b = ev.target.closest('.tab'); if (b) setTab(b.dataset.tab); });
+  document.querySelectorAll('.kpi').forEach((k) => k.addEventListener('click', () => setTab(k.dataset.jump === 'all' ? 'all' : 'overdue')));
+  $('searchInput').addEventListener('input', (e) => { state.search = e.target.value; renderTable(); });
+
+  // modal
+  const openModal = () => { $('modal').classList.remove('hidden'); $('modal').classList.add('flex'); setTimeout(() => $('fName').focus(), 50); };
+  const closeModal = () => { $('modal').classList.add('hidden'); $('modal').classList.remove('flex'); };
+  $('addLeadBtn').onclick = openModal;
+  $('closeModal').onclick = closeModal;
+  $('cancelModal').onclick = closeModal;
+  $('modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
+
+  $('leadForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const btn = $('submitLead');
+    setBusy(btn, true, 'AI evaluating lead…');
+    const payload = {
+      name: $('fName').value.trim(), company: $('fCompany').value.trim(),
+      phone: $('fPhone').value.trim(), source: $('fSource').value,
+      initial_notes: $('fNotes').value.trim() || null,
+    };
+    try {
+      const lead = await api('/api/leads', { method: 'POST', body: JSON.stringify(payload) });
+      upsertLead(lead);
+      setTab('all');
+      renderAll(lead.id);
+      $('leadForm').reset();
+      closeModal();
+      toast(`${lead.company} added · tagged ${lead.status}`);
+      openDrawer(lead.id);
+    } catch (e) {
+      toast(`Could not add lead: ${e.message}`, 'error');
+    } finally { setBusy(btn, false); }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!$('resetModal').classList.contains('hidden')) closeResetModal();
+    else if (!$('modal').classList.contains('hidden')) closeModal(); else if (state.openId) closeDrawer();
+  });
+
+  // init
+  $('todayLabel').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  setTab('all');
+  icons();
+  loadLeads();
+})();
+</script>
+</body>
+</html>

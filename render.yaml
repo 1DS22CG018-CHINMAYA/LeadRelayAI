@@ -1,0 +1,14 @@
+# Render Blueprint for LeadRelay AI (FastAPI + LangGraph + Groq).
+services:
+  - type: web
+    name: leadrelay-ai
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: GROQ_API_KEY
+        sync: false  # set the secret in the Render dashboard; never commit it
